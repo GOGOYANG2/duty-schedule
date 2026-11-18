@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>국방 용사 당직 및 근무일정 관리 체계</title>
+  <title>국방 용사 주간 당직·근무 편성표 (시간표 체계)</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- FontAwesome Icons -->
@@ -11,7 +11,7 @@
   <!-- Supabase JS Client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Google Fonts: Noto Sans KR -->
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <script>
     tailwind.config = {
       theme: {
@@ -23,9 +23,10 @@
             military: {
               50: '#f4f6f0',
               100: '#e5ebd9',
-              500: '#4d633c',
+              600: '#3e522f',
               700: '#2b3a20',
-              900: '#1a2414',
+              800: '#222f1a',
+              900: '#141c10',
             }
           }
         }
@@ -34,138 +35,206 @@
   </script>
   <style>
     body { font-family: 'Noto Sans KR', sans-serif; }
-    .badge-휴가 { background-color: #fee2e2; color: #991b1b; border: 1px solid #f87171; }
-    .badge-외박 { background-color: #ffedd5; color: #9a3412; border: 1px solid #fb923c; }
-    .badge-외출 { background-color: #fef9c3; color: #854d0e; border: 1px solid #facc15; }
-    .badge-정상근무 { background-color: #dcfce7; color: #166534; border: 1px solid #4ade80; }
-    .badge-환자 { background-color: #f3e8ff; color: #6b21a8; border: 1px solid #c084fc; }
+    /* 인쇄 시 시간표 중심 출력 스타일 */
+    @media print {
+      header, .no-print { display: none !important; }
+      body { background: white !important; }
+      .timetable-container { box-shadow: none !important; border: 1px solid #000 !important; }
+    }
+    .duty-cell {
+      min-height: 52px;
+      transition: all 0.15s ease;
+    }
+    .duty-cell:hover {
+      background-color: #f1f5f9;
+    }
   </style>
 </head>
-<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col">
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
 
   <!-- 상단 네비게이션 헤더 -->
   <header class="bg-military-900 text-white shadow-md sticky top-0 z-30">
-    <div class="max-w-7xl mx-auto px-4 py-3 sm:px-6 flex flex-wrap justify-between items-center gap-3">
+    <div class="max-w-[1700px] mx-auto px-4 py-2.5 sm:px-6 flex flex-wrap justify-between items-center gap-3">
       <div class="flex items-center space-x-3">
-        <div class="w-10 h-10 rounded-lg bg-military-500 flex items-center justify-center text-white text-xl shadow">
-          <i class="fa-solid fa-shield-halved"></i>
+        <div class="w-9 h-9 rounded-lg bg-military-600 flex items-center justify-center text-white text-lg shadow">
+          <i class="fa-solid fa-calendar-days"></i>
         </div>
         <div>
-          <h1 class="text-lg sm:text-xl font-bold tracking-tight flex items-center gap-2">
-            국방 당직·근무 관리 시스템
-            <span class="text-xs bg-emerald-600 text-white font-medium px-2 py-0.5 rounded-full">실시간 연동</span>
+          <h1 class="text-base sm:text-lg font-extrabold tracking-tight flex items-center gap-2">
+            주간 용사 당직·근무 시간표
+            <span class="text-[11px] bg-emerald-600 text-white font-semibold px-2 py-0.5 rounded-full">학교 시간표형</span>
           </h1>
-          <p class="text-xs text-slate-300">부대 용사 현황 및 당직·근무 자동 편성 체계</p>
+          <p class="text-[11px] text-slate-300">요일별 한눈에 보는 당직 및 경계근무 종합 편성표</p>
         </div>
       </div>
 
+      <!-- 상단 액션 바 -->
       <div class="flex items-center gap-2">
-        <!-- Supabase 연동 상태 표시 버튼 -->
-        <button onclick="openConfigModal()" class="px-3 py-1.5 rounded-md text-xs font-semibold bg-slate-800 hover:bg-slate-700 border border-slate-600 flex items-center gap-2 transition">
+        <button onclick="window.print()" class="no-print px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 flex items-center gap-1.5 transition">
+          <i class="fa-solid fa-print"></i> 시간표 인쇄
+        </button>
+        <button onclick="openConfigModal()" class="no-print px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 flex items-center gap-2 transition">
           <span id="connectionDot" class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
-          <span id="connectionText">수퍼베이스 설정</span>
+          <span id="connectionText">수퍼베이스 연동</span>
           <i class="fa-solid fa-gear text-slate-400"></i>
         </button>
       </div>
     </div>
   </header>
 
-  <!-- 메인 컨텐츠 영역 -->
-  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+  <!-- 메인 레이아웃 -->
+  <main class="flex-1 max-w-[1700px] w-full mx-auto p-3 sm:p-5 flex flex-col gap-5">
 
-    <!-- 좌측/상단: 인원 및 출타/특이사항 현황 (5 cols) -->
-    <section class="lg:col-span-5 flex flex-col gap-5">
+    <!-- 상단: 주간 컨트롤 바 & 요약 배너 -->
+    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap justify-between items-center gap-4">
       
-      <!-- 통계 카드 요약 -->
-      <div class="grid grid-cols-4 gap-2 bg-white p-3.5 rounded-xl shadow-sm border border-slate-200">
-        <div class="text-center p-2 rounded-lg bg-slate-50">
-          <div class="text-xs text-slate-500 font-medium">총원</div>
-          <div id="statTotal" class="text-lg font-bold text-slate-800">0</div>
-        </div>
-        <div class="text-center p-2 rounded-lg bg-emerald-50">
-          <div class="text-xs text-emerald-600 font-medium">정상</div>
-          <div id="statNormal" class="text-lg font-bold text-emerald-700">0</div>
-        </div>
-        <div class="text-center p-2 rounded-lg bg-rose-50">
-          <div class="text-xs text-rose-600 font-medium">휴가</div>
-          <div id="statVacation" class="text-lg font-bold text-rose-700">0</div>
-        </div>
-        <div class="text-center p-2 rounded-lg bg-amber-50">
-          <div class="text-xs text-amber-600 font-medium">외출/외박</div>
-          <div id="statOut" class="text-lg font-bold text-amber-700">0</div>
-        </div>
+      <!-- 주간 날짜 이동 컨트롤 -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        <button onclick="changeWeek(-1)" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg border border-slate-300 transition">
+          <i class="fa-solid fa-chevron-left"></i> 지난주
+        </button>
+        <button onclick="goCurrentWeek()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-lg transition">
+          오늘 / 이번주
+        </button>
+        <button onclick="changeWeek(1)" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg border border-slate-300 transition">
+          다음주 <i class="fa-solid fa-chevron-right"></i>
+        </button>
+        <span id="weekTitle" class="text-sm sm:text-base font-extrabold text-slate-800 ml-2">
+          2026년 11월 주간 시간표
+        </span>
       </div>
 
-      <!-- 용사 명단 및 특이사항 관리 박스 -->
-      <div class="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col flex-1 overflow-hidden">
-        <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
-          <div class="flex items-center gap-2">
-            <i class="fa-solid fa-users text-military-700"></i>
-            <h2 class="font-bold text-slate-800">용사 명단 & 특이사항</h2>
-          </div>
-          <button onclick="openAddSoldierModal()" class="px-2.5 py-1 text-xs font-semibold bg-military-700 hover:bg-military-900 text-white rounded-lg flex items-center gap-1.5 transition">
-            <i class="fa-solid fa-user-plus"></i> 인원 등록
-          </button>
-        </div>
+      <!-- 출타 및 특이사항 요약 칩 -->
+      <div class="flex flex-wrap items-center gap-2 text-xs font-medium">
+        <span class="text-slate-500 font-bold mr-1">현재원 상태 요약:</span>
+        <span class="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-semibold border border-emerald-300">
+          정상 <strong id="sumNormal">0</strong>명
+        </span>
+        <span class="px-2.5 py-1 rounded-full bg-rose-100 text-rose-800 font-semibold border border-rose-300">
+          휴가 <strong id="sumVacation">0</strong>명
+        </span>
+        <span class="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 font-semibold border border-amber-300">
+          외출·외박 <strong id="sumOut">0</strong>명
+        </span>
+        <span class="px-2.5 py-1 rounded-full bg-purple-100 text-purple-800 font-semibold border border-purple-300">
+          환자·열외 <strong id="sumPatient">0</strong>명
+        </span>
+      </div>
+    </div>
 
-        <!-- 필터 탭 -->
-        <div class="p-3 bg-white border-b border-slate-100 flex gap-1.5 overflow-x-auto text-xs">
-          <button onclick="filterSoldiers('전체')" class="filter-btn active px-3 py-1 rounded-full font-medium bg-slate-800 text-white" data-filter="전체">전체</button>
-          <button onclick="filterSoldiers('정상근무')" class="filter-btn px-3 py-1 rounded-full font-medium bg-slate-100 text-slate-600 hover:bg-slate-200" data-filter="정상근무">정상근무</button>
-          <button onclick="filterSoldiers('휴가')" class="filter-btn px-3 py-1 rounded-full font-medium bg-slate-100 text-slate-600 hover:bg-slate-200" data-filter="휴가">휴가</button>
-          <button onclick="filterSoldiers('외박/외출')" class="filter-btn px-3 py-1 rounded-full font-medium bg-slate-100 text-slate-600 hover:bg-slate-200" data-filter="외박/외출">외박/외출</button>
-          <button onclick="filterSoldiers('환자')" class="filter-btn px-3 py-1 rounded-full font-medium bg-slate-100 text-slate-600 hover:bg-slate-200" data-filter="환자">환자</button>
-        </div>
+    <!-- 핵심: 요일별 주간 시간표 (학교 시간표 형태) -->
+    <div class="bg-white rounded-xl shadow-md border border-slate-300 overflow-hidden timetable-container">
+      
+      <div class="overflow-x-auto">
+        <table class="w-full text-center border-collapse min-w-[1100px]">
+          <!-- 요일 헤더 (학교 시간표의 월 화 수 목 금 토 일) -->
+          <thead>
+            <tr class="bg-slate-800 text-white text-xs divide-x divide-slate-700">
+              <th class="py-3 px-2 w-[180px] font-bold bg-slate-900 sticky left-0 z-20">
+                근무 형태 / 시간대
+              </th>
+              <th id="th-0" class="py-2.5 px-2 font-bold w-[13%]">월요일<br><span class="text-[11px] font-normal opacity-80" id="date-0"></span></th>
+              <th id="th-1" class="py-2.5 px-2 font-bold w-[13%]">화요일<br><span class="text-[11px] font-normal opacity-80" id="date-1"></span></th>
+              <th id="th-2" class="py-2.5 px-2 font-bold w-[13%]">수요일<br><span class="text-[11px] font-normal opacity-80" id="date-2"></span></th>
+              <th id="th-3" class="py-2.5 px-2 font-bold w-[13%]">목요일<br><span class="text-[11px] font-normal opacity-80" id="date-3"></span></th>
+              <th id="th-4" class="py-2.5 px-2 font-bold w-[13%]">금요일<br><span class="text-[11px] font-normal opacity-80" id="date-4"></span></th>
+              <th id="th-5" class="py-2.5 px-2 font-bold w-[13%] text-sky-300">토요일<br><span class="text-[11px] font-normal opacity-80" id="date-5"></span></th>
+              <th id="th-6" class="py-2.5 px-2 font-bold w-[13%] text-rose-300">일요일<br><span class="text-[11px] font-normal opacity-80" id="date-6"></span></th>
+            </tr>
+          </thead>
 
-        <!-- 용사 리스트 -->
-        <div id="soldierList" class="divide-y divide-slate-100 overflow-y-auto max-h-[550px] p-2 space-y-2">
-          <div class="text-center py-12 text-slate-400 text-sm">
-            <i class="fa-solid fa-spinner fa-spin text-2xl mb-2 block"></i> 데이터 불러오는 중...
-          </div>
+          <!-- 시간표 본문 그리드 -->
+          <tbody id="timetableBody" class="divide-y divide-slate-200 text-xs">
+            <!-- 자바스크립트로 동적 렌더링 됩니다 -->
+          </tbody>
+        </table>
+      </div>
+      
+      <!-- 시간표 하단 가이드 -->
+      <div class="p-3 bg-slate-50 border-t border-slate-200 flex flex-wrap justify-between items-center gap-2 text-xs text-slate-500">
+        <div class="flex items-center gap-3">
+          <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-emerald-100 border border-emerald-400 inline-block"></span> 정상 편성</span>
+          <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-rose-100 border border-rose-400 inline-block"></span> ⚠️ 출타/열외자 편성 경고</span>
+          <span class="flex items-center gap-1 text-slate-400"><i class="fa-solid fa-plus-circle"></i> 빈 칸 클릭 시 즉시 배정</span>
+        </div>
+        <div class="text-[11px] text-slate-400">
+          * 배정된 근무자의 이름표를 클릭하면 변경 또는 삭제할 수 있습니다.
         </div>
       </div>
-    </section>
+    </div>
 
-    <!-- 우측: 당직 및 근무일정 편성표 (7 cols) -->
-    <section class="lg:col-span-7 flex flex-col gap-5">
-      <div class="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col flex-1 overflow-hidden">
-        <!-- 근무표 헤더 및 날짜 선택 -->
-        <div class="p-4 border-b border-slate-200 flex flex-wrap justify-between items-center gap-3 bg-slate-50">
-          <div class="flex items-center gap-2">
-            <i class="fa-solid fa-calendar-check text-military-700"></i>
-            <h2 class="font-bold text-slate-800">당직 및 근무 편성표</h2>
-          </div>
-
-          <div class="flex items-center gap-2">
-            <input type="date" id="selectedDate" onchange="loadSchedules()" class="text-xs font-semibold px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-military-500">
-            <button onclick="openAddScheduleModal()" class="px-3 py-1.5 text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg flex items-center gap-1.5 shadow-sm transition">
-              <i class="fa-solid fa-plus"></i> 근무 추가
-            </button>
-          </div>
+    <!-- 하단 섹션: 용사 명단 관리 및 개인별 메모/특이사항 -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+      <div class="flex flex-wrap justify-between items-center gap-3 mb-3 pb-2 border-b border-slate-200">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-id-card-clip text-military-700 text-base"></i>
+          <h2 class="text-sm font-bold text-slate-800">용사 명단 및 개인별 메모 / 특이사항 관리</h2>
+          <span class="text-xs text-slate-400 font-normal">(신병, 휴가, 환자 등 특이사항을 기록하면 시간표 편성 시 즉시 반영됩니다)</span>
         </div>
-
-        <!-- 안내 문구 배너 -->
-        <div class="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center gap-2 text-xs text-amber-800">
-          <i class="fa-solid fa-triangle-exclamation text-amber-600"></i>
-          <span><strong>근무 편성 수칙:</strong> 휴가·외출·외박 및 특이사항(환자 등) 인원은 편성 전 열외 상태를 꼭 확인하세요.</span>
-        </div>
-
-        <!-- 근무 편성 목록 -->
-        <div id="scheduleList" class="p-4 space-y-3 overflow-y-auto max-h-[600px] flex-1">
-          <div class="text-center py-16 text-slate-400 text-sm">
-            근무표를 불러오는 중입니다...
-          </div>
-        </div>
+        <button onclick="openAddSoldierModal()" class="px-3 py-1.5 text-xs font-bold bg-military-700 hover:bg-military-800 text-white rounded-lg flex items-center gap-1.5 transition">
+          <i class="fa-solid fa-user-plus"></i> 새 용사 등록
+        </button>
       </div>
-    </section>
+
+      <!-- 용사 카드 그리드 -->
+      <div id="soldierCardsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-[360px] overflow-y-auto p-1">
+        <!-- 동적 렌더링 -->
+      </div>
+    </div>
   </main>
 
-  <!-- 모달 1: 용사 등록 및 특이사항 수정 모달 -->
+  <!-- 모달 1: 시간표 셀 클릭 시 바로 뜨는 근무 배정 모달 -->
+  <div id="slotAssignModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 animate-scale-up">
+      <div class="flex justify-between items-center mb-4 pb-2 border-b">
+        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+          <i class="fa-solid fa-clipboard-check text-emerald-600"></i> 근무자 배정
+        </h3>
+        <button onclick="closeSlotAssignModal()" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
+      </div>
+
+      <form id="slotAssignForm" onsubmit="handleSlotAssignSubmit(event)" class="space-y-4">
+        <input type="hidden" id="assignDutyDate">
+        <input type="hidden" id="assignDutyType">
+        <input type="hidden" id="assignTimeSlot">
+        <input type="hidden" id="assignScheduleId">
+
+        <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1 text-xs">
+          <div><span class="text-slate-500 font-medium">근무 날짜:</span> <strong id="assignDateText" class="text-slate-800"></strong></div>
+          <div><span class="text-slate-500 font-medium">근무 명칭:</span> <strong id="assignDutyText" class="text-emerald-700 font-bold"></strong></div>
+          <div><span class="text-slate-500 font-medium">시간대:</span> <strong id="assignTimeText" class="text-slate-700"></strong></div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">근무할 용사 선택 *</label>
+          <select id="assignSoldierSelect" required class="w-full text-xs p-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-500 font-medium">
+            <option value="">-- 근무자를 선택하세요 --</option>
+          </select>
+          <!-- 선택한 용사의 특이사항/출타 경고 박스 -->
+          <div id="assignWarningBox" class="mt-2 p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-700 font-medium hidden">
+            <i class="fa-solid fa-triangle-exclamation mr-1"></i> <span id="assignWarningText"></span>
+          </div>
+        </div>
+
+        <div class="flex justify-between items-center pt-3 border-t">
+          <button type="button" id="btnDeleteSchedule" onclick="handleDeleteAssignedSchedule()" class="px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-lg hidden">
+            <i class="fa-solid fa-trash-can mr-1"></i> 배정 취소
+          </button>
+          <div class="flex gap-2 ml-auto">
+            <button type="button" onclick="closeSlotAssignModal()" class="px-3 py-2 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg">닫기</button>
+            <button type="submit" class="px-4 py-2 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg shadow-sm">배정 완료</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 모달 2: 용사 등록 및 특이사항 수정 모달 -->
   <div id="soldierModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 animate-scale-up">
       <div class="flex justify-between items-center mb-4 pb-2 border-b">
         <h3 id="soldierModalTitle" class="text-base font-bold text-slate-800 flex items-center gap-2">
-          <i class="fa-solid fa-user-tag text-military-700"></i> 용사 정보 등록
+          <i class="fa-solid fa-user-tag text-military-700"></i> 용사 등록 / 수정
         </h3>
         <button onclick="closeSoldierModal()" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
       </div>
@@ -176,103 +245,55 @@
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block text-xs font-semibold text-slate-600 mb-1">계급 *</label>
-            <select id="soldierRank" required class="w-full text-xs p-2.5 border rounded-lg focus:ring-2 focus:ring-military-500">
+            <select id="soldierRank" required class="w-full text-xs p-2.5 border rounded-lg focus:ring-2 focus:ring-military-600">
               <option value="이병">이병</option>
               <option value="일병">일병</option>
               <option value="상병">상병</option>
               <option value="병장" selected>병장</option>
-              <option value="하사">하사</option>
-              <option value="중사">중사</option>
             </select>
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-600 mb-1">성명 *</label>
-            <input type="text" id="soldierName" required placeholder="예: 김민우" class="w-full text-xs p-2.5 border rounded-lg focus:ring-2 focus:ring-military-500">
+            <input type="text" id="soldierName" required placeholder="예: 김민우" class="w-full text-xs p-2.5 border rounded-lg focus:ring-2 focus:ring-military-600">
           </div>
         </div>
 
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">소속 분대/소대</label>
-            <input type="text" id="soldierSquad" placeholder="예: 1소대 1분대" class="w-full text-xs p-2.5 border rounded-lg focus:ring-2 focus:ring-military-500">
+            <label class="block text-xs font-semibold text-slate-600 mb-1">소속 (분대/소대)</label>
+            <input type="text" id="soldierSquad" placeholder="예: 1소대 1분대" class="w-full text-xs p-2.5 border rounded-lg focus:ring-2 focus:ring-military-600">
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-600 mb-1">현재 상태 *</label>
-            <select id="soldierStatus" required class="w-full text-xs p-2.5 border rounded-lg focus:ring-2 focus:ring-military-500 font-semibold">
+            <select id="soldierStatus" required class="w-full text-xs p-2.5 border rounded-lg focus:ring-2 focus:ring-military-600 font-bold">
               <option value="정상근무">정상근무</option>
               <option value="휴가">휴가</option>
               <option value="외박">외박</option>
               <option value="외출">외출</option>
-              <option value="환자">환자/열외</option>
+              <option value="환자">환자 / 열외</option>
             </select>
           </div>
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">메모 및 특이사항</label>
-          <textarea id="soldierNotes" rows="3" placeholder="예: 정기휴가(11/18~11/22), 발목 삠으로 서서 하는 근무 열외 요망 등" class="w-full text-xs p-2.5 border rounded-lg focus:ring-2 focus:ring-military-500"></textarea>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">개인별 메모 및 특이사항</label>
+          <textarea id="soldierNotes" rows="3" placeholder="예: 11/18~11/22 정기휴가, 발목 염좌로 입초 근무 제외, 신병 적응 관찰 등" class="w-full text-xs p-2.5 border rounded-lg focus:ring-2 focus:ring-military-600"></textarea>
         </div>
 
-        <div class="flex justify-end gap-2 pt-3 border-t">
-          <button type="button" onclick="closeSoldierModal()" class="px-3 py-2 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg">취소</button>
-          <button type="submit" class="px-4 py-2 text-xs font-bold text-white bg-military-700 hover:bg-military-900 rounded-lg">저장하기</button>
+        <div class="flex justify-between items-center pt-3 border-t">
+          <button type="button" id="btnDeleteSoldier" onclick="handleDeleteSoldier()" class="px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-lg hidden">
+            <i class="fa-solid fa-trash-can mr-1"></i> 명단 삭제
+          </button>
+          <div class="flex gap-2 ml-auto">
+            <button type="button" onclick="closeSoldierModal()" class="px-3 py-2 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg">취소</button>
+            <button type="submit" class="px-4 py-2 text-xs font-bold text-white bg-military-700 hover:bg-military-800 rounded-lg">저장</button>
+          </div>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- 모달 2: 근무 추가 모달 -->
-  <div id="scheduleModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 animate-scale-up">
-      <div class="flex justify-between items-center mb-4 pb-2 border-b">
-        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
-          <i class="fa-solid fa-clipboard-user text-emerald-600"></i> 당직/근무 배정
-        </h3>
-        <button onclick="closeScheduleModal()" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
-      </div>
-
-      <form id="scheduleForm" onsubmit="saveSchedule(event)" class="space-y-4">
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">근무 날짜 *</label>
-          <input type="date" id="scheduleDate" required class="w-full text-xs p-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-500">
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">근무 형태 *</label>
-            <select id="scheduleType" required class="w-full text-xs p-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-500">
-              <option value="당직사관">당직사관</option>
-              <option value="당직부관">당직부관</option>
-              <option value="불침번">불침번</option>
-              <option value="위병조장">위병조장</option>
-              <option value="위병소/초소">위병소/초소</option>
-              <option value="CCTV 감시">CCTV 감시</option>
-              <option value="탄약고 경계">탄약고 경계</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">근무 시간대 *</label>
-            <input type="text" id="scheduleTimeSlot" required placeholder="예: 22:00~00:00 or 전반야" class="w-full text-xs p-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-500">
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">근무자 선택 *</label>
-          <select id="scheduleSoldierSelect" required class="w-full text-xs p-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-500">
-            <option value="">-- 근무자를 선택하세요 --</option>
-          </select>
-          <p id="scheduleWarning" class="text-xs text-rose-600 font-semibold mt-1 hidden"></p>
-        </div>
-
-        <div class="flex justify-end gap-2 pt-3 border-t">
-          <button type="button" onclick="closeScheduleModal()" class="px-3 py-2 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg">취소</button>
-          <button type="submit" class="px-4 py-2 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg">편성하기</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- 모달 3: 수퍼베이스 URL & Key 설정 모달 -->
+  <!-- 모달 3: 수퍼베이스 설정 모달 -->
   <div id="configModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 animate-scale-up">
       <div class="flex justify-between items-center mb-4 pb-2 border-b">
@@ -283,8 +304,7 @@
       </div>
 
       <div class="text-xs text-slate-600 space-y-2 mb-4 bg-slate-50 p-3 rounded-lg border border-slate-200">
-        <p>💡 <strong>Supabase 프로젝트 설정(Project Settings -> API)</strong>에서 확인하신 2가지 정보를 입력해 주세요.</p>
-        <p>한 번 저장하면 브라우저에 안전하게 보관되어 실시간으로 데이터가 저장·조회됩니다.</p>
+        <p>💡 <strong>Supabase 프로젝트 설정(Project Settings -> API)</strong>의 2가지 정보를 입력하면 전 세계 어디서든 데이터가 실시간 동기화됩니다.</p>
       </div>
 
       <form id="configForm" onsubmit="saveSupabaseConfig(event)" class="space-y-4">
@@ -300,34 +320,105 @@
 
         <div class="flex justify-end gap-2 pt-3 border-t">
           <button type="button" onclick="closeConfigModal()" class="px-3 py-2 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg">닫기</button>
-          <button type="submit" class="px-4 py-2 text-xs font-bold text-white bg-military-700 hover:bg-military-900 rounded-lg">연결 및 저장</button>
+          <button type="submit" class="px-4 py-2 text-xs font-bold text-white bg-military-700 hover:bg-military-800 rounded-lg">저장 및 연동</button>
         </div>
       </form>
     </div>
   </div>
 
   <!-- 푸터 -->
-  <footer class="bg-slate-200 text-slate-500 text-xs py-4 text-center border-t border-slate-300">
-    <p>군 용사 당직·근무 및 출타 관리 시스템 &copy; 2026. Made with GitHub, Supabase & Vercel.</p>
+  <footer class="bg-slate-200 text-slate-500 text-xs py-3.5 text-center border-t border-slate-300 no-print">
+    <p>군 용사 주간 당직·근무 편성 관리 체계 &copy; 2026. GitHub &bull; Supabase &bull; Vercel</p>
   </footer>
 
-  <!-- 프론트엔드 자바스크립트 로직 -->
+  <!-- 프론트엔드 스크립트 -->
   <script>
-    // 상태 변수
+    // 학교 시간표 형태를 구성할 근무 종류 및 시간대 정의
+    const DUTY_SLOTS = [
+      { category: '당직 근무', name: '당직분대장', time: '24시간', icon: 'fa-user-tie', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+      { category: '당직 근무', name: '당직부관', time: '24시간', icon: 'fa-user-shield', color: 'bg-blue-50 text-blue-700 border-blue-200' },
+      { category: '불침번 초번', name: '불침번 1번초', time: '22:00 ~ 00:00', icon: 'fa-moon', color: 'bg-slate-50 text-slate-700 border-slate-200' },
+      { category: '불침번 중번', name: '불침번 2번초', time: '00:00 ~ 02:00', icon: 'fa-moon', color: 'bg-slate-50 text-slate-700 border-slate-200' },
+      { category: '불침번 중번', name: '불침번 3번초', time: '02:00 ~ 04:00', icon: 'fa-moon', color: 'bg-slate-50 text-slate-700 border-slate-200' },
+      { category: '불침번 말번', name: '불침번 4번초', time: '04:00 ~ 06:00', icon: 'fa-moon', color: 'bg-slate-50 text-slate-700 border-slate-200' },
+      { category: '경계 근무', name: '위병소/초소 (주간)', time: '08:00 ~ 18:00', icon: 'fa-shield-halved', color: 'bg-amber-50 text-amber-700 border-amber-200' },
+      { category: '경계 근무', name: '위병소/초소 (야간)', time: '18:00 ~ 08:00', icon: 'fa-person-military-rifle', color: 'bg-rose-50 text-rose-700 border-rose-200' },
+      { category: '경계 근무', name: 'CCTV 감시병', time: '교대 근무', icon: 'fa-video', color: 'bg-teal-50 text-teal-700 border-teal-200' },
+      { category: '경계 근무', name: '탄약고 경계', time: '야간 순찰', icon: 'fa-boxes-stacked', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' }
+    ];
+
     let supabaseClient = null;
-    let soldiersData = [];
-    let schedulesData = [];
-    let currentFilter = '전체';
+    let currentWeekStartDate = null; // 이번 주 월요일 Date 객체
+    let weekDates = []; // [YYYY-MM-DD x 7]
+    let soldiersList = [];
+    let schedulesList = [];
 
-    // 날짜 기본값: 오늘
-    const todayStr = new Date().toISOString().split('T')[0];
-    document.getElementById('selectedDate').value = todayStr;
-    document.getElementById('scheduleDate').value = todayStr;
-
-    // 초기화 함수
+    // 실행 시작
     window.addEventListener('DOMContentLoaded', () => {
+      initWeekDate();
       initSupabase();
     });
+
+    // 주간 날짜 계산 (월요일 기준 7일)
+    function initWeekDate(baseDate = new Date()) {
+      const d = new Date(baseDate);
+      const day = d.getDay(); // 0:일, 1:월, ..., 6:토
+      const diff = d.getDate() - day + (day === 0 ? -6 : 1); // 월요일로 이동
+      d.setDate(diff);
+      d.setHours(0, 0, 0, 0);
+      currentWeekStartDate = d;
+      calcWeekDates();
+    }
+
+    function calcWeekDates() {
+      weekDates = [];
+      const dayNames = ['월요일', '화요일', '수요일', '목요일', '금요일', '토요일', '일요일'];
+      const todayString = new Date().toISOString().split('T')[0];
+
+      for (let i = 0; i < 7; i++) {
+        const temp = new Date(currentWeekStartDate);
+        temp.setDate(temp.getDate() + i);
+        const yyyy = temp.getFullYear();
+        const mm = String(temp.getMonth() + 1).padStart(2, '0');
+        const dd = String(temp.getDate()).padStart(2, '0');
+        const dateStr = `${yyyy}-${mm}-${dd}`;
+        weekDates.push(dateStr);
+
+        // 상단 헤더 날짜 업데이트
+        const dateSpan = document.getElementById(`date-${i}`);
+        const th = document.getElementById(`th-${i}`);
+        if (dateSpan) dateSpan.innerText = `${mm}.${dd}`;
+
+        // 오늘 날짜 하이라이트
+        if (th) {
+          if (dateStr === todayString) {
+            th.className = "py-2.5 px-2 font-extrabold w-[13%] bg-military-700 text-amber-300 ring-2 ring-amber-400";
+            th.innerHTML = `${dayNames[i]} <span class="bg-amber-400 text-military-900 text-[10px] px-1.5 py-0.2 rounded-full font-black">오늘</span><br><span class="text-[11px] font-bold">${mm}.${dd}</span>`;
+          } else {
+            const isSat = i === 5;
+            const isSun = i === 6;
+            th.className = `py-2.5 px-2 font-bold w-[13%] ${isSat ? 'text-sky-300' : isSun ? 'text-rose-300' : 'text-slate-100'}`;
+            th.innerHTML = `${dayNames[i]}<br><span class="text-[11px] font-normal opacity-80">${mm}.${dd}</span>`;
+          }
+        }
+      }
+
+      // 주간 타이틀 표시
+      const startStr = `${weekDates[0].split('-')[1]}월 ${weekDates[0].split('-')[2]}일`;
+      const endStr = `${weekDates[6].split('-')[1]}월 ${weekDates[6].split('-')[2]}일`;
+      document.getElementById('weekTitle').innerText = `${weekDates[0].split('-')[0]}년 ${startStr} ~ ${endStr} 주간 시간표`;
+    }
+
+    function changeWeek(offset) {
+      currentWeekStartDate.setDate(currentWeekStartDate.getDate() + (offset * 7));
+      calcWeekDates();
+      loadSchedulesForWeek();
+    }
+
+    function goCurrentWeek() {
+      initWeekDate(new Date());
+      loadSchedulesForWeek();
+    }
 
     // Supabase 초기화
     function initSupabase() {
@@ -341,9 +432,9 @@
         try {
           supabaseClient = window.supabase.createClient(storedUrl, storedKey);
           updateConnectionStatus(true);
-          loadAllData();
+          loadData();
         } catch (e) {
-          console.error("Supabase Init Error:", e);
+          console.error(e);
           updateConnectionStatus(false);
           loadMockData();
         }
@@ -361,238 +452,344 @@
         text.innerText = "수퍼베이스 연동됨";
       } else {
         dot.className = "w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse";
-        text.innerText = "수퍼베이스 키 입력필요";
+        text.innerText = "수퍼베이스 설정 필요";
       }
     }
 
-    // 설정 저장
     function saveSupabaseConfig(e) {
       e.preventDefault();
       const url = document.getElementById('cfgSupabaseUrl').value.trim();
       const key = document.getElementById('cfgSupabaseKey').value.trim();
-
       localStorage.setItem('SPB_URL', url);
       localStorage.setItem('SPB_KEY', key);
-
       closeConfigModal();
       initSupabase();
-      alert('수퍼베이스 연결 정보가 저장되었습니다!');
+      alert('수퍼베이스 연결 정보가 안전하게 저장되었습니다!');
     }
 
     // 데이터 로드
-    async function loadAllData() {
+    async function loadData() {
       await loadSoldiers();
-      await loadSchedules();
+      await loadSchedulesForWeek();
     }
 
-    // 용사 목록 가져오기
     async function loadSoldiers() {
       if (!supabaseClient) return;
-
-      const { data, error } = await supabaseClient
-        .from('soldiers')
-        .select('*')
-        .order('id', { ascending: true });
-
-      if (error) {
-        console.error("Soldiers load error:", error);
-        return;
+      const { data, error } = await supabaseClient.from('soldiers').select('*').order('id', { ascending: true });
+      if (!error && data) {
+        soldiersList = data;
+        renderSoldierCards();
+        updateSummary();
       }
-
-      soldiersData = data || [];
-      renderSoldiers();
-      updateStats();
-      updateSoldierSelectOptions();
     }
 
-    // 근무표 가져오기
-    async function loadSchedules() {
-      const dateVal = document.getElementById('selectedDate').value;
-      if (!supabaseClient) return;
+    async function loadSchedulesForWeek() {
+      if (!supabaseClient) {
+        renderTimetable();
+        return;
+      }
+      const startDate = weekDates[0];
+      const endDate = weekDates[6];
 
       const { data, error } = await supabaseClient
         .from('schedules')
         .select('*')
-        .eq('duty_date', dateVal)
-        .order('id', { ascending: true });
+        .gte('duty_date', startDate)
+        .lte('duty_date', endDate);
 
-      if (error) {
-        console.error("Schedules load error:", error);
-        return;
+      if (!error && data) {
+        schedulesList = data;
       }
-
-      schedulesData = data || [];
-      renderSchedules();
+      renderTimetable();
     }
 
-    // 모의(샘플) 데이터
+    // 샘플 데이터
     function loadMockData() {
-      soldiersData = [
-        { id: 1, rank: '병장', name: '김민우', squad: '1소대 1분대', status: '정상근무', notes: '다음 주 전역 예정(말년), 야간 근무 가능' },
+      soldiersList = [
+        { id: 1, rank: '병장', name: '김민우', squad: '1소대 1분대', status: '정상근무', notes: '분대장, 다음 주 전역 전 휴가 예정' },
         { id: 2, rank: '상병', name: '이진혁', squad: '1소대 1분대', status: '휴가', notes: '정기휴가 (11/18 ~ 11/22)' },
-        { id: 3, rank: '일병', name: '박성호', squad: '1소대 2분대', status: '외출', notes: '치과 외출 (13:00 ~ 17:00)' },
-        { id: 4, rank: '이병', name: '최동현', squad: '1소대 2분대', status: '정상근무', notes: '신병 적응 중, 초소근무 2인 1조 배속 요망' },
-        { id: 5, rank: '상병', name: '정태양', squad: '1소대 3분대', status: '환자', notes: '훈련 중 발목 염좌, 보행 근무 불가' }
+        { id: 3, rank: '일병', name: '박성호', squad: '1소대 2분대', status: '외출', notes: '치과 진료 외출 (13:00~17:00)' },
+        { id: 4, rank: '이병', name: '최동현', squad: '1소대 2분대', status: '정상근무', notes: '신병, 2인 1조 야간 경계 요망' },
+        { id: 5, rank: '상병', name: '정태양', squad: '1소대 3분대', status: '환자', notes: '발목 염좌, 보행 근무 불가 (CCTV 가능)' }
       ];
-      schedulesData = [
-        { id: 101, duty_date: todayStr, duty_type: '당직사관', time_slot: '24시간', soldier_name: '김민우', soldier_rank: '병장', soldier_id: 1 },
-        { id: 102, duty_date: todayStr, duty_type: '불침번', time_slot: '22:00 ~ 00:00 (1번초)', soldier_name: '최동현', soldier_rank: '이병', soldier_id: 4 }
+
+      const todayStr = weekDates[0];
+      schedulesList = [
+        { id: 101, duty_date: weekDates[0], duty_type: '당직분대장', time_slot: '24시간', soldier_name: '김민우', soldier_rank: '병장', soldier_id: 1 },
+        { id: 102, duty_date: weekDates[0], duty_type: '불침번 1번초', time_slot: '22:00 ~ 00:00', soldier_name: '최동현', soldier_rank: '이병', soldier_id: 4 },
+        { id: 103, duty_date: weekDates[1], duty_type: '위병소/초소 (주간)', time_slot: '08:00 ~ 18:00', soldier_name: '이진혁', soldier_rank: '상병', soldier_id: 2 }
       ];
-      renderSoldiers();
-      updateStats();
-      updateSoldierSelectOptions();
-      renderSchedules();
+
+      renderSoldierCards();
+      updateSummary();
+      renderTimetable();
     }
 
-    // 통계 계산
-    function updateStats() {
-      const total = soldiersData.length;
-      const normal = soldiersData.filter(s => s.status === '정상근무').length;
-      const vacation = soldiersData.filter(s => s.status === '휴가').length;
-      const out = soldiersData.filter(s => s.status === '외출' || s.status === '외박').length;
+    // 상단 출타 현황 요약 칩 계산
+    function updateSummary() {
+      const normal = soldiersList.filter(s => s.status === '정상근무').length;
+      const vacation = soldiersList.filter(s => s.status === '휴가').length;
+      const out = soldiersList.filter(s => s.status === '외출' || s.status === '외박').length;
+      const patient = soldiersList.filter(s => s.status === '환자').length;
 
-      document.getElementById('statTotal').innerText = total;
-      document.getElementById('statNormal').innerText = normal;
-      document.getElementById('statVacation').innerText = vacation;
-      document.getElementById('statOut').innerText = out;
+      document.getElementById('sumNormal').innerText = normal;
+      document.getElementById('sumVacation').innerText = vacation;
+      document.getElementById('sumOut').innerText = out;
+      document.getElementById('sumPatient').innerText = patient;
     }
 
-    // 용사 필터링
-    function filterSoldiers(filter) {
-      currentFilter = filter;
-      document.querySelectorAll('.filter-btn').forEach(btn => {
-        if (btn.getAttribute('data-filter') === filter) {
-          btn.className = "filter-btn active px-3 py-1 rounded-full font-medium bg-slate-800 text-white";
-        } else {
-          btn.className = "filter-btn px-3 py-1 rounded-full font-medium bg-slate-100 text-slate-600 hover:bg-slate-200";
-        }
+    // 시간표 본문 렌더링 (학교 시간표 스타일)
+    function renderTimetable() {
+      const tbody = document.getElementById('timetableBody');
+      tbody.innerHTML = '';
+
+      DUTY_SLOTS.forEach(slot => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50/70 divide-x divide-slate-200 transition";
+
+        // 좌측 1열: 근무 형태 및 시간대 레이블 (학교 시간표의 1교시, 2교시 형태)
+        const th = document.createElement('th');
+        th.className = "p-2.5 text-left bg-slate-50 sticky left-0 z-10 border-r border-slate-200";
+        th.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="w-7 h-7 rounded-lg ${slot.color} flex items-center justify-center text-xs">
+              <i class="fa-solid ${slot.icon}"></i>
+            </span>
+            <div>
+              <div class="font-extrabold text-slate-800 text-xs">${slot.name}</div>
+              <div class="text-[11px] text-slate-400 font-medium">${slot.time}</div>
+            </div>
+          </div>
+        `;
+        tr.appendChild(th);
+
+        // 월~일 (7개 요일 열)
+        weekDates.forEach((dateStr, dayIdx) => {
+          const td = document.createElement('td');
+          td.className = "p-1.5 align-middle duty-cell relative cursor-pointer";
+
+          // 해당 날짜 & 해당 근무 형태에 배정된 일정 찾기
+          const assigned = schedulesList.find(s => s.duty_date === dateStr && s.duty_type === slot.name);
+
+          if (assigned) {
+            // 배정된 용사 정보
+            const soldier = soldiersList.find(s => s.id === assigned.soldier_id || s.name === assigned.soldier_name);
+            const isAbnormal = soldier && soldier.status !== '정상근무';
+
+            td.innerHTML = `
+              <div onclick="openSlotAssignModal('${dateStr}', '${slot.name}', '${slot.time}', ${assigned.id}, ${assigned.soldier_id || 'null'})" 
+                   class="group w-full p-2 rounded-lg border text-center transition shadow-sm ${isAbnormal ? 'bg-rose-50 border-rose-300 hover:border-rose-500' : 'bg-emerald-50/90 border-emerald-300 hover:border-emerald-500'}">
+                <div class="font-extrabold text-xs ${isAbnormal ? 'text-rose-900' : 'text-emerald-950'} flex items-center justify-center gap-1">
+                  <span>${assigned.soldier_rank || ''}</span>
+                  <span>${assigned.soldier_name}</span>
+                </div>
+                ${isAbnormal ? `
+                  <div class="text-[10px] font-bold text-rose-600 mt-0.5 animate-pulse">
+                    ⚠️ ${soldier.status} 중!
+                  </div>
+                ` : `
+                  <div class="text-[10px] text-emerald-700/80 mt-0.5">
+                    근무 가능
+                  </div>
+                `}
+              </div>
+            `;
+          } else {
+            // 빈 칸 (클릭하여 즉시 배정)
+            td.innerHTML = `
+              <div onclick="openSlotAssignModal('${dateStr}', '${slot.name}', '${slot.time}')" 
+                   class="w-full h-full min-h-[46px] rounded-lg border border-dashed border-slate-200 hover:border-military-600 hover:bg-military-50/40 flex items-center justify-center text-slate-300 hover:text-military-700 transition">
+                <i class="fa-solid fa-plus text-xs"></i>
+              </div>
+            `;
+          }
+
+          tr.appendChild(td);
+        });
+
+        tbody.appendChild(tr);
       });
-      renderSoldiers();
     }
 
-    // 용사 목록 렌더링
-    function renderSoldiers() {
-      const container = document.getElementById('soldierList');
+    // 하단 용사 카드 렌더링
+    function renderSoldierCards() {
+      const container = document.getElementById('soldierCardsGrid');
       container.innerHTML = '';
 
-      let filtered = soldiersData;
-      if (currentFilter === '정상근무') filtered = soldiersData.filter(s => s.status === '정상근무');
-      else if (currentFilter === '휴가') filtered = soldiersData.filter(s => s.status === '휴가');
-      else if (currentFilter === '외박/외출') filtered = soldiersData.filter(s => s.status === '외박' || s.status === '외출');
-      else if (currentFilter === '환자') filtered = soldiersData.filter(s => s.status === '환자');
-
-      if (filtered.length === 0) {
-        container.innerHTML = `<div class="text-center py-10 text-slate-400 text-xs">해당 조건의 인원이 없습니다.</div>`;
+      if (soldiersList.length === 0) {
+        container.innerHTML = '<div class="col-span-full text-center py-6 text-slate-400 text-xs">등록된 용사가 없습니다. [새 용사 등록] 버튼을 눌러주세요.</div>';
         return;
       }
 
-      filtered.forEach(s => {
-        const div = document.createElement('div');
-        div.className = "p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition shadow-sm";
-        
-        let statusBadge = `<span class="badge-${s.status} text-[11px] font-bold px-2 py-0.5 rounded-full">${s.status}</span>`;
+      soldiersList.forEach(s => {
+        const card = document.createElement('div');
+        const isNormal = s.status === '정상근무';
+        card.className = "p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition shadow-sm flex flex-col justify-between";
 
-        div.innerHTML = `
-          <div class="flex justify-between items-start gap-2">
-            <div>
-              <div class="flex items-center gap-2">
+        let badgeStyle = "bg-emerald-100 text-emerald-800 border-emerald-300";
+        if (s.status === '휴가') badgeStyle = "bg-rose-100 text-rose-800 border-rose-300";
+        else if (s.status === '외박' || s.status === '외출') badgeStyle = "bg-amber-100 text-amber-800 border-amber-300";
+        else if (s.status === '환자') badgeStyle = "bg-purple-100 text-purple-800 border-purple-300";
+
+        card.innerHTML = `
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <div class="flex items-center gap-1.5">
                 <span class="text-xs font-bold text-slate-500">${s.rank}</span>
                 <span class="text-sm font-extrabold text-slate-800">${s.name}</span>
-                <span class="text-xs text-slate-400">(${s.squad || '소속미지정'})</span>
-                ${statusBadge}
               </div>
-              <div class="mt-1.5 text-xs text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-100">
-                <i class="fa-regular fa-comment-dots text-slate-400 mr-1"></i>
-                <span class="${s.notes ? 'text-slate-700' : 'text-slate-400 italic'}">${s.notes || '특이사항 없음'}</span>
-              </div>
+              <span class="text-[11px] font-bold px-2 py-0.5 rounded-full border ${badgeStyle}">${s.status}</span>
             </div>
-            <div class="flex items-center gap-1">
-              <button onclick="editSoldier(${s.id})" title="정보 수정" class="p-1.5 text-slate-400 hover:text-slate-700 rounded-md hover:bg-slate-100 text-xs">
-                <i class="fa-solid fa-pen-to-square"></i>
-              </button>
-              <button onclick="deleteSoldier(${s.id})" title="삭제" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-md hover:bg-rose-50 text-xs">
-                <i class="fa-solid fa-trash-can"></i>
-              </button>
+            <div class="text-[11px] text-slate-400 mb-1.5">${s.squad || '소속 미지정'}</div>
+            <div class="text-xs text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-100 min-h-[38px]">
+              <i class="fa-regular fa-comment-dots text-slate-400 mr-1"></i>
+              <span class="${s.notes ? 'text-slate-700' : 'text-slate-400 italic'}">${s.notes || '특이사항 없음'}</span>
             </div>
           </div>
-        `;
-        container.appendChild(div);
-      });
-    }
-
-    // 근무표 렌더링
-    function renderSchedules() {
-      const container = document.getElementById('scheduleList');
-      container.innerHTML = '';
-
-      if (schedulesData.length === 0) {
-        container.innerHTML = `
-          <div class="text-center py-16 text-slate-400 text-sm">
-            <i class="fa-regular fa-calendar-xmark text-3xl mb-2 text-slate-300 block"></i>
-            해당 날짜에 편성된 근무 일정이 없습니다.<br>
-            우측 상단 <strong>[+ 근무 추가]</strong> 버튼으로 편성해 보세요.
-          </div>
-        `;
-        return;
-      }
-
-      schedulesData.forEach(item => {
-        // 배정된 용사의 상태 확인
-        const assignedSoldier = soldiersData.find(s => s.id === item.soldier_id || s.name === item.soldier_name);
-        const isOut = assignedSoldier && (assignedSoldier.status !== '정상근무');
-
-        const div = document.createElement('div');
-        div.className = `p-3.5 rounded-xl border ${isOut ? 'border-rose-300 bg-rose-50/40' : 'border-slate-200 bg-white'} shadow-sm flex flex-wrap justify-between items-center gap-3`;
-
-        div.innerHTML = `
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-lg ${isOut ? 'bg-rose-100 text-rose-700' : 'bg-military-50 text-military-700'} flex items-center justify-center font-bold text-sm">
-              <i class="fa-solid ${getDutyIcon(item.duty_type)}"></i>
-            </div>
-            <div>
-              <div class="flex items-center gap-2">
-                <span class="text-xs font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700">${item.duty_type}</span>
-                <span class="text-xs text-slate-500"><i class="fa-regular fa-clock"></i> ${item.time_slot}</span>
-              </div>
-              <div class="mt-1 flex items-center gap-2">
-                <span class="text-sm font-bold text-slate-800">${item.soldier_rank || ''} ${item.soldier_name}</span>
-                ${isOut ? `<span class="text-[11px] font-bold text-rose-600 bg-rose-100 px-2 py-0.2 rounded-full"><i class="fa-solid fa-triangle-exclamation"></i> 현재 ${assignedSoldier.status} 중!</span>` : ''}
-                ${assignedSoldier && assignedSoldier.notes ? `<span class="text-xs text-slate-500">(${assignedSoldier.notes})</span>` : ''}
-              </div>
-            </div>
-          </div>
-          <div>
-            <button onclick="deleteSchedule(${item.id})" class="text-xs px-2.5 py-1 text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-lg transition">
-              <i class="fa-solid fa-trash-can mr-1"></i> 해제
+          <div class="flex justify-end mt-2 pt-2 border-t border-slate-100">
+            <button onclick="editSoldier(${s.id})" class="text-xs text-slate-500 hover:text-slate-800 font-semibold px-2 py-0.5 rounded hover:bg-slate-100">
+              <i class="fa-solid fa-pen-to-square mr-1"></i>수정
             </button>
           </div>
         `;
-        container.appendChild(div);
+        container.appendChild(card);
       });
     }
 
-    function getDutyIcon(dutyType) {
-      if (dutyType.includes('당직사관')) return 'fa-user-tie';
-      if (dutyType.includes('당직부관')) return 'fa-user-shield';
-      if (dutyType.includes('불침번')) return 'fa-moon';
-      if (dutyType.includes('위병')) return 'fa-shield-halved';
-      if (dutyType.includes('CCTV')) return 'fa-video';
-      return 'fa-person-military-rifle';
+    // 시간표 셀 클릭 시 배정 팝업 열기
+    function openSlotAssignModal(dateStr, dutyType, timeSlot, existingScheduleId = null, existingSoldierId = null) {
+      document.getElementById('assignDutyDate').value = dateStr;
+      document.getElementById('assignDutyType').value = dutyType;
+      document.getElementById('assignTimeSlot').value = timeSlot;
+      document.getElementById('assignScheduleId').value = existingScheduleId || '';
+
+      document.getElementById('assignDateText').innerText = dateStr;
+      document.getElementById('assignDutyText').innerText = dutyType;
+      document.getElementById('assignTimeText').innerText = timeSlot;
+
+      // 용사 선택 옵션 채우기
+      const select = document.getElementById('assignSoldierSelect');
+      select.innerHTML = '<option value="">-- 근무자를 선택하세요 --</option>';
+
+      soldiersList.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.dataset.name = s.name;
+        opt.dataset.rank = s.rank;
+        opt.dataset.status = s.status;
+        opt.dataset.notes = s.notes || '';
+        
+        let flag = s.status === '정상근무' ? '' : ` [⚠️ ${s.status}]`;
+        opt.textContent = `${s.rank} ${s.name} (${s.squad || '소속미지정'})${flag}`;
+        if (existingSoldierId && s.id == existingSoldierId) {
+          opt.selected = true;
+        }
+        select.appendChild(opt);
+      });
+
+      // 배정 취소 버튼 표시 여부
+      const btnDel = document.getElementById('btnDeleteSchedule');
+      if (existingScheduleId) btnDel.classList.remove('hidden');
+      else btnDel.classList.add('hidden');
+
+      // 경고창 업데이트 로직 연결
+      select.onchange = checkAssigneeWarning;
+      checkAssigneeWarning();
+
+      document.getElementById('slotAssignModal').classList.remove('hidden');
     }
 
-    // 모달 관리
-    function openConfigModal() { document.getElementById('configModal').classList.remove('hidden'); }
-    function closeConfigModal() { document.getElementById('configModal').classList.add('hidden'); }
+    function checkAssigneeWarning() {
+      const select = document.getElementById('assignSoldierSelect');
+      const box = document.getElementById('assignWarningBox');
+      const text = document.getElementById('assignWarningText');
+      const opt = select.options[select.selectedIndex];
 
+      if (opt && opt.dataset.status && opt.dataset.status !== '정상근무') {
+        text.innerText = `${opt.dataset.rank} ${opt.dataset.name} 용사는 현재 [${opt.dataset.status}] 상태입니다. (메모: ${opt.dataset.notes || '없음'})`;
+        box.classList.remove('hidden');
+      } else {
+        box.classList.add('hidden');
+      }
+    }
+
+    function closeSlotAssignModal() {
+      document.getElementById('slotAssignModal').classList.add('hidden');
+    }
+
+    // 근무 배정 저장
+    async function handleSlotAssignSubmit(e) {
+      e.preventDefault();
+      const duty_date = document.getElementById('assignDutyDate').value;
+      const duty_type = document.getElementById('assignDutyType').value;
+      const time_slot = document.getElementById('assignTimeSlot').value;
+      const scheduleId = document.getElementById('assignScheduleId').value;
+      const select = document.getElementById('assignSoldierSelect');
+      const opt = select.options[select.selectedIndex];
+
+      if (!opt.value) {
+        alert('근무자를 선택해 주세요.');
+        return;
+      }
+
+      const payload = {
+        duty_date,
+        duty_type,
+        time_slot,
+        soldier_id: Number(opt.value),
+        soldier_name: opt.dataset.name,
+        soldier_rank: opt.dataset.rank
+      };
+
+      if (supabaseClient) {
+        if (scheduleId) {
+          await supabaseClient.from('schedules').update(payload).eq('id', scheduleId);
+        } else {
+          await supabaseClient.from('schedules').insert([payload]);
+        }
+        await loadSchedulesForWeek();
+      } else {
+        // 로컬 모의
+        if (scheduleId) {
+          const idx = schedulesList.findIndex(s => s.id == scheduleId);
+          if (idx !== -1) schedulesList[idx] = { ...schedulesList[idx], ...payload };
+        } else {
+          schedulesList.push({ id: Date.now(), ...payload });
+        }
+        renderTimetable();
+      }
+
+      closeSlotAssignModal();
+    }
+
+    // 근무 배정 취소
+    async function handleDeleteAssignedSchedule() {
+      const scheduleId = document.getElementById('assignScheduleId').value;
+      if (!scheduleId) return;
+      if (!confirm('이 근무 배정을 취소하시겠습니까?')) return;
+
+      if (supabaseClient) {
+        await supabaseClient.from('schedules').delete().eq('id', scheduleId);
+        await loadSchedulesForWeek();
+      } else {
+        schedulesList = schedulesList.filter(s => s.id != scheduleId);
+        renderTimetable();
+      }
+
+      closeSlotAssignModal();
+    }
+
+    // 용사 등록 및 수정 모달
     function openAddSoldierModal() {
       document.getElementById('soldierModalTitle').innerHTML = '<i class="fa-solid fa-user-plus text-military-700"></i> 새 용사 등록';
       document.getElementById('editSoldierId').value = '';
       document.getElementById('soldierForm').reset();
+      document.getElementById('btnDeleteSoldier').classList.add('hidden');
       document.getElementById('soldierModal').classList.remove('hidden');
     }
 
     function editSoldier(id) {
-      const s = soldiersData.find(item => item.id === id);
+      const s = soldiersList.find(item => item.id === id);
       if (!s) return;
       document.getElementById('soldierModalTitle').innerHTML = '<i class="fa-solid fa-pen-to-square text-military-700"></i> 용사 정보 및 특이사항 수정';
       document.getElementById('editSoldierId').value = s.id;
@@ -601,50 +798,14 @@
       document.getElementById('soldierSquad').value = s.squad || '';
       document.getElementById('soldierStatus').value = s.status;
       document.getElementById('soldierNotes').value = s.notes || '';
+      document.getElementById('btnDeleteSoldier').classList.remove('hidden');
       document.getElementById('soldierModal').classList.remove('hidden');
     }
 
-    function closeSoldierModal() { document.getElementById('soldierModal').classList.add('hidden'); }
-
-    function openAddScheduleModal() {
-      const currentSelectedDate = document.getElementById('selectedDate').value;
-      document.getElementById('scheduleDate').value = currentSelectedDate;
-      document.getElementById('scheduleModal').classList.remove('hidden');
+    function closeSoldierModal() {
+      document.getElementById('soldierModal').classList.add('hidden');
     }
 
-    function closeScheduleModal() { document.getElementById('scheduleModal').classList.add('hidden'); }
-
-    // 용사 선택 셀렉트박스 옵션 채우기
-    function updateSoldierSelectOptions() {
-      const select = document.getElementById('scheduleSoldierSelect');
-      select.innerHTML = '<option value="">-- 근무자를 선택하세요 --</option>';
-
-      soldiersData.forEach(s => {
-        const option = document.createElement('option');
-        option.value = s.id;
-        option.dataset.name = s.name;
-        option.dataset.rank = s.rank;
-        option.dataset.status = s.status;
-        option.dataset.notes = s.notes || '';
-        
-        let statusBadge = s.status === '정상근무' ? '' : ` [⚠️ ${s.status}]`;
-        option.textContent = `${s.rank} ${s.name} (${s.squad || '소대미지정'})${statusBadge}`;
-        select.appendChild(option);
-      });
-
-      select.onchange = function() {
-        const opt = select.options[select.selectedIndex];
-        const warning = document.getElementById('scheduleWarning');
-        if (opt && opt.dataset.status && opt.dataset.status !== '정상근무') {
-          warning.innerText = `⚠️ 주의: ${opt.dataset.rank} ${opt.dataset.name} 용사는 현재 [${opt.dataset.status}] 상태입니다! (메모: ${opt.dataset.notes || '없음'})`;
-          warning.classList.remove('hidden');
-        } else {
-          warning.classList.add('hidden');
-        }
-      };
-    }
-
-    // 용사 저장 (추가/수정)
     async function saveSoldier(e) {
       e.preventDefault();
       const id = document.getElementById('editSoldierId').value;
@@ -654,98 +815,51 @@
       const status = document.getElementById('soldierStatus').value;
       const notes = document.getElementById('soldierNotes').value.trim();
 
-      const soldierPayload = { rank, name, squad, status, notes };
+      const payload = { rank, name, squad, status, notes };
 
       if (supabaseClient) {
         if (id) {
-          const { error } = await supabaseClient.from('soldiers').update(soldierPayload).eq('id', id);
-          if (error) alert("수정 중 오류 발생: " + error.message);
+          await supabaseClient.from('soldiers').update(payload).eq('id', id);
         } else {
-          const { error } = await supabaseClient.from('soldiers').insert([soldierPayload]);
-          if (error) alert("등록 중 오류 발생: " + error.message);
+          await supabaseClient.from('soldiers').insert([payload]);
         }
         await loadSoldiers();
+        await loadSchedulesForWeek();
       } else {
-        // 로컬 모드
         if (id) {
-          const idx = soldiersData.findIndex(s => s.id == id);
-          if (idx !== -1) soldiersData[idx] = { ...soldiersData[idx], ...soldierPayload };
+          const idx = soldiersList.findIndex(s => s.id == id);
+          if (idx !== -1) soldiersList[idx] = { ...soldiersList[idx], ...payload };
         } else {
-          soldiersData.push({ id: Date.now(), ...soldierPayload });
+          soldiersList.push({ id: Date.now(), ...payload });
         }
-        renderSoldiers();
-        updateStats();
-        updateSoldierSelectOptions();
+        renderSoldierCards();
+        updateSummary();
+        renderTimetable();
       }
 
       closeSoldierModal();
     }
 
-    // 용사 삭제
-    async function deleteSoldier(id) {
-      if (!confirm("해당 용사를 명단에서 삭제하시겠습니까?")) return;
+    async function handleDeleteSoldier() {
+      const id = document.getElementById('editSoldierId').value;
+      if (!id || !confirm('정말 이 용사를 명단에서 삭제하시겠습니까?')) return;
 
       if (supabaseClient) {
-        const { error } = await supabaseClient.from('soldiers').delete().eq('id', id);
-        if (error) alert("삭제 오류: " + error.message);
+        await supabaseClient.from('soldiers').delete().eq('id', id);
         await loadSoldiers();
+        await loadSchedulesForWeek();
       } else {
-        soldiersData = soldiersData.filter(s => s.id !== id);
-        renderSoldiers();
-        updateStats();
-        updateSoldierSelectOptions();
-      }
-    }
-
-    // 근무 배정 저장
-    async function saveSchedule(e) {
-      e.preventDefault();
-      const duty_date = document.getElementById('scheduleDate').value;
-      const duty_type = document.getElementById('scheduleType').value;
-      const time_slot = document.getElementById('scheduleTimeSlot').value.trim();
-      const select = document.getElementById('scheduleSoldierSelect');
-      const soldier_id = select.value;
-      const opt = select.options[select.selectedIndex];
-      const soldier_name = opt.dataset.name;
-      const soldier_rank = opt.dataset.rank;
-
-      const schedulePayload = {
-        duty_date,
-        duty_type,
-        time_slot,
-        soldier_id: soldier_id ? Number(soldier_id) : null,
-        soldier_name,
-        soldier_rank
-      };
-
-      if (supabaseClient) {
-        const { error } = await supabaseClient.from('schedules').insert([schedulePayload]);
-        if (error) alert("근무 편성 오류: " + error.message);
-        document.getElementById('selectedDate').value = duty_date;
-        await loadSchedules();
-      } else {
-        schedulesData.push({ id: Date.now(), ...schedulePayload });
-        document.getElementById('selectedDate').value = duty_date;
-        renderSchedules();
+        soldiersList = soldiersList.filter(s => s.id != id);
+        renderSoldierCards();
+        updateSummary();
+        renderTimetable();
       }
 
-      closeScheduleModal();
+      closeSoldierModal();
     }
 
-    // 근무 배정 해제
-    async function deleteSchedule(id) {
-      if (!confirm("이 근무 배정을 취소하시겠습니까?")) return;
-
-      if (supabaseClient) {
-        const { error } = await supabaseClient.from('schedules').delete().eq('id', id);
-        if (error) alert("취소 오류: " + error.message);
-        await loadSchedules();
-      } else {
-        schedulesData = schedulesData.filter(item => item.id !== id);
-        renderSchedules();
-      }
-    }
+    function openConfigModal() { document.getElementById('configModal').classList.remove('hidden'); }
+    function closeConfigModal() { document.getElementById('configModal').classList.add('hidden'); }
   </script>
 </body>
 </html>
-
